@@ -1,0 +1,77 @@
+from machine import Pin, I2C
+from ssd1306 import SSD1306_I2C
+import utime
+from dht20 import DHT20
+import machine, neopixel, utime
+
+#LED light pico
+np = neopixel.NeoPixel(machine.Pin(18), 2)
+
+#light sensor
+analog_value = machine.ADC(27)
+
+#OLED
+i2c=I2C(0,sda=Pin(0), scl=Pin(1), freq=100000)
+oled = SSD1306_I2C(128, 64, i2c)
+
+# Setup DC Motor pins
+M1A = machine.PWM(machine.Pin(4))
+M1B = machine.PWM(machine.Pin(5))
+M1A.freq(50)
+M1B.freq(50)
+
+speed=input()
+print("Speed=",str(speed))
+time=input()
+print("Time=",str(time), "seconds")
+
+threshold=6000
+r,g,b=0,0,0
+heating=True
+reading = analog_value.read_u16()     
+
+while True:
+    if speed == str(1):
+        M1B.duty_u16(20000)
+    if speed == str(2):
+        M1B.duty_u16(40000)
+    if speed == str(3):
+        M1B.duty_u16(65535)
+    if int(time) > 0:
+        time=int(time)-1
+    if int(time) == 0:
+        M1B.duty_u16(0)
+        speed = 0
+    reading = analog_value.read_u16()
+    oled.fill(0)
+    oled.show()
+    oled.text("Temp ="+str(reading),0,0)
+    oled.text("Threshold ="+str(threshold),0,20)
+    oled.text("Speed = "+str(speed),0,30)
+    oled.text("Time = "+str(time),0,40)
+    if heating==True:
+        oled.text("Heating: On",0,10)
+    else:
+        oled.text("Heating: Off",0,10)
+    oled.show()
+    if heating==True:
+        utime.sleep(1)
+        np[1] = (100, 100, 100)
+        r,g,b=r+1,g+1,b+1
+        np[0] = (r, g, b)
+        np.write()
+        print(reading)
+        if reading>threshold:
+            heating=False
+    if heating == False:
+        np[1] = (0, 0, 0)
+        if not r + g + b == 0: 
+            r,g,b=r-1,g-1,b-1
+        np[0] = (r, g, b)
+        np.write()
+        utime.sleep(1)
+        print(reading)
+        if reading<=(threshold*0.9):
+            heating = True
+        
+
